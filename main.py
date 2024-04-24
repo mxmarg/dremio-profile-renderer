@@ -6,4 +6,4 @@ if __name__ == '__main__':
     DREMIO_ENDPOINT = sys.argv[1]
     DREMIO_ADMIN_USERNAME = sys.argv[2]
     DREMIO_PAT_TOKEN = sys.argv[3]
-    rendered_profiles, profile_attempts = render_profiles(DREMIO_ENDPOINT, DREMIO_ADMIN_USERNAME, DREMIO_PAT_TOKEN)
+    render_profiles(DREMIO_ENDPOINT, DREMIO_ADMIN_USERNAME, DREMIO_PAT_TOKEN)

@@ -32,10 +32,9 @@ def render_profiles(DREMIO_ENDPOINT: str, DREMIO_ADMIN_USERNAME: str, DREMIO_PAT
     auth_token = log_in(DREMIO_ENDPOINT, DREMIO_ADMIN_USERNAME, DREMIO_PAT_TOKEN)
 
     profiles_dir = 'profiles'
+    target_dir = "rendered"
     all_files = [os.path.join(profiles_dir, f) for f in os.listdir(profiles_dir) if os.path.isfile(os.path.join(profiles_dir, f))]
 
-    rendered_profiles = []
-    profile_attempts = []
     for filename in all_files:
         if not filename.endswith(".zip"):
             print(f"Skipping {filename}")
@@ -43,22 +42,23 @@ def render_profiles(DREMIO_ENDPOINT: str, DREMIO_ADMIN_USERNAME: str, DREMIO_PAT
             print(f"Rendering {filename} ...")
             with open(filename, "rb") as readall:
                 with zipfile.ZipFile(readall, "r") as z:
-                    with z.open('profile_attempt_0.json') as f:
-                        data = f.read()
-                        profile_attempt = data.decode('utf-8')
-                        headers = {"Content-Type": "application/x-www-form-urlencoded", "Authorization": auth_token}
-                        payload = {"profileJsonText": profile_attempt}
-                        response = requests.post(DREMIO_ENDPOINT + '/apiv2/test/render_external_profile',
-                                                headers=headers, data=payload, timeout=None, verify=True)
-                        rendered_profile = response.text
-                        rendered_profile = rendered_profile.replace('/static/css/', DREMIO_ENDPOINT + '/static/css/')
-                        rendered_profile = rendered_profile.replace('/static/js/', DREMIO_ENDPOINT + '/static/js/')
-            rendered_profiles.append(rendered_profile)
-            profile_attempts.append(profile_attempt)
+                    for zipped_file in z.namelist():
+                        if zipped_file.startswith("profile_attempt"):
+                            with z.open(zipped_file) as f:
+                                data = f.read()
+                                profile_attempt = data.decode('utf-8')
+                            
+                            headers = {"Content-Type": "application/x-www-form-urlencoded", "Authorization": auth_token}
+                            payload = {"profileJsonText": profile_attempt}
+                            response = requests.post(DREMIO_ENDPOINT + '/apiv2/test/render_external_profile',
+                                                    headers=headers, data=payload, timeout=None, verify=True)
+                            rendered_profile = response.text
+                            rendered_profile = rendered_profile.replace('/static/css/', DREMIO_ENDPOINT + '/static/css/')
+                            rendered_profile = rendered_profile.replace('/static/js/', DREMIO_ENDPOINT + '/static/js/')
 
-            target_dir = "rendered"
-            target_file = filename.replace(".zip", ".html").replace(profiles_dir, target_dir)
-            with open(target_file, "w") as t:
-                t.write(rendered_profile)
+                            attempt = zipped_file.replace(".json", "")
+                            target_file = filename.replace(".zip", f"_{attempt}.html").replace(profiles_dir, target_dir)
 
-    return rendered_profiles, profile_attempts
+                            print(f"Creating {target_file} ...")
+                            with open(target_file, "w") as t:
+                                t.write(rendered_profile)
